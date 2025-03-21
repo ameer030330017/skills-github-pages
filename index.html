@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="sd">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hala Rikshaw</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places,directions&callback=initMap" async defer></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background-image: url('ajrak-pattern.jpg'); background-size: cover; color: white; }
+        .container { max-width: 400px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; background: rgba(0, 0, 0, 0.7); }
+        input, button, select { width: 100%; margin: 10px 0; padding: 10px; }
+        #map { width: 100%; height: 300px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <button onclick="toggleDarkMode()">🌙 Dark Mode</button>
+
+    <!-- Sign-Up Page -->
+    <div class="container" id="signup-container">
+        <h2>نئون کاتو ٺاهيو</h2>
+        <input type="text" id="signup-name" placeholder="نالو">
+        <input type="email" id="signup-email" placeholder="ايميل">
+        <input type="password" id="signup-password" placeholder="پاسورڊ">
+        <button onclick="signUp()">رجسٽر ٿيو</button>
+        <p>پهرئين ئي کاتو آهي؟ <a href="#" onclick="showLogin()">لاگ ان ڪريو</a></p>
+        <button onclick="loginWithGoogle()">Google سان لاگ ان ڪريو</button>
+    </div>
+
+    <!-- Login Page -->
+    <div class="container" id="login-container" style="display:none;">
+        <h2>Hala Rikshaw - لاگ ان</h2>
+        <input type="email" id="login-email" placeholder="ايميل">
+        <input type="password" id="login-password" placeholder="پاسورڊ">
+        <button onclick="login()">لاگ ان</button>
+        <p><a href="#" onclick="forgotPassword()">پاسورڊ وسري ويو؟</a></p>
+        <p>اکائونٽ ناهي؟ <a href="#" onclick="showSignUp()">رجسٽر ٿيو</a></p>
+    </div>
+
+    <!-- Main App Page -->
+    <div class="container" id="app-container" style="display:none;">
+        <h2>Hala Rikshaw</h2>
+        <p id="user-name"></p>
+        
+        <!-- Username Update -->
+        <input type="text" id="new-username" placeholder="نئون نالو">
+        <button onclick="updateUsername()">نالو اپڊيٽ ڪريو</button>
+
+        <label for="pickup">ڪٿي وٺڻ چاهيو ٿا؟</label>
+        <input type="text" id="pickup" placeholder="پنهنجي جاءِ لکو">
+        
+        <label for="destination">ڪٿي وڃڻ چاهيو ٿا؟</label>
+        <input type="text" id="destination" placeholder="مطلوبہ جاءِ لکو">
+        
+        <div id="map"></div>
+        
+        <p>اندازي ڪرايو: <span id="estimated-fare">0</span> رپيا</p>
+        
+        <button onclick="bookRide()">بڪنگ ڪريو</button>
+        <p id="status"></p>
+        <button onclick="logout()">لاگ آئوٽ</button>
+    </div>
+
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        firebase.initializeApp(firebaseConfig);
+
+        const auth = firebase.auth();
+
+        function showLogin() {
+            document.getElementById('signup-container').style.display = 'none';
+            document.getElementById('login-container').style.display = 'block';
+        }
+
+        function showSignUp() {
+            document.getElementById('login-container').style.display = 'none';
+            document.getElementById('signup-container').style.display = 'block';
+        }
+
+        function signUp() {
+            let name = document.getElementById('signup-name').value;
+            let email = document.getElementById('signup-email').value;
+            let password = document.getElementById('signup-password').value;
+
+            auth.createUserWithEmailAndPassword(email, password)
+                .then(userCredential => {
+                    let user = userCredential.user;
+                    return user.updateProfile({ displayName: name });
+                })
+                .then(() => {
+                    alert('رجسٽر ڪامياب! لاگ ان ٿيو.');
+                    showLogin();
+                })
+                .catch(error => alert(error.message));
+        }
+
+        function login() {
+            let email = document.getElementById('login-email').value;
+            let password = document.getElementById('login-password').value;
+
+            auth.signInWithEmailAndPassword(email, password)
+                .then(() => {
+                    alert('لاگ ان ڪامياب!');
+                    document.getElementById('login-container').style.display = 'none';
+                    document.getElementById('app-container').style.display = 'block';
+                    document.getElementById('user-name').innerText = "Welcome, " + auth.currentUser.displayName;
+                })
+                .catch(error => alert(error.message));
+        }
+
+        function loginWithGoogle() {
+            let provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider)
+                .then(() => {
+                    alert('Google سان ڪامياب لاگ ان!');
+                    document.getElementById('login-container').style.display = 'none';
+                    document.getElementById('app-container').style.display = 'block';
+                })
+                .catch(error => alert(error.message));
+        }
+
+        function forgotPassword() {
+            let email = prompt("پنهنجو ايميل داخل ڪريو:");
+            if (email) {
+                auth.sendPasswordResetEmail(email)
+                    .then(() => alert("پاسورڊ ري سيٽ لنڪ ايميل ڪيو ويو!"))
+                    .catch(error => alert(error.message));
+            }
+        }
+
+        function updateUsername() {
+            let newName = document.getElementById('new-username').value;
+            if (newName) {
+                auth.currentUser.updateProfile({ displayName: newName })
+                    .then(() => {
+                        alert("نالو ڪاميابي سان اپڊيٽ ڪيو ويو!");
+                        document.getElementById('user-name').innerText = "Welcome, " + newName;
+                    })
+                    .catch(error => alert(error.message));
+            }
+        }
+
+        function logout() {
+            auth.signOut().then(() => {
+                alert('لاگ آئوٽ ڪامياب.');
+                document.getElementById('app-container').style.display = 'none';
+                document.getElementById('login-container').style.display = 'block';
+            });
+        }
+    </script>
+</body>
+</html>
